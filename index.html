@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Location Tracking Link Generator</title>
+<style>
+  :root {
+    --primary: #6a11cb;
+    --secondary: #2575fc;
+    --bg-gradient: linear-gradient(to right, var(--primary), var(--secondary));
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --text-dark: #333;
+    --text-light: #fff;
+    --card-bg: #f9f9f9;
+    --shadow: rgba(0, 0, 0, 0.15);
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: var(--font-family);
+    background: #fafafa;
+    color: var(--text-dark);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+  }
+  header {
+    background: var(--bg-gradient);
+    width: 100%;
+    padding: 1.5rem;
+    color: white;
+    text-align: center;
+    box-shadow: 0 4px 6px var(--shadow);
+    border-radius: 0 0 12px 12px;
+  }
+  header h1 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.8rem;
+    letter-spacing: 1px;
+  }
+  main {
+    max-width: 800px;
+    width: 100%;
+    margin-top: 1rem;
+  }
+  section {
+    background: var(--card-bg);
+    box-shadow: 0 2px 8px var(--shadow);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  input[type="text"], input[type="url"] {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    font-size: 1rem;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    transition: border-color 0.3s ease;
+  }
+  input[type="text"]:focus, input[type="url"]:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  button {
+    background: var(--bg-gradient);
+    color: white;
+    border: none;
+    padding: 0.7rem 1.4rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.35s ease;
+    margin-top: 1rem;
+  }
+  button:hover {
+    background: #3f0d82;
+  }
+  .link-list {
+    list-style: none;
+    padding-left: 0;
+    margin-top: 1rem;
+  }
+  .link-list li {
+    background: white;
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  .tracking-link {
+    word-break: break-all;
+    color: var(--secondary);
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+  .visitor-info {
+    font-size: 0.9rem;
+    color: #555;
+    background: #eef2ff;
+    padding: 0.5rem;
+    border-radius: 6px;
+    max-height: 150px;
+    overflow-y: auto;
+    font-family: monospace;
+  }
+  .footer {
+    margin-top: auto;
+    padding: 1rem;
+    font-size: 0.8rem;
+    color: #777;
+    text-align: center;
+  }
+  @media (max-width: 500px) {
+    header h1 {
+      font-size: 1.4rem;
+    }
+    button {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Location Tracking Link Generator</h1>
+</header>
+
+<main>
+  <section id="creator-section">
+    <h2>Create a Tracking Link</h2>
+    <label for="linkLabel">Tracking Link Label (optional):</label>
+    <input type="text" id="linkLabel" placeholder="e.g. My Campaign Link" />
+    <button id="createLinkBtn">Create Tracking Link</button>
+
+    <h3>Your Tracking Links</h3>
+    <ul class="link-list" id="trackingLinks"></ul>
+  </section>
+
+  <section id="tracking-section" style="display:none;">
+    <h2>Tracking Link Active</h2>
+    <p>Your location is being requested for tracking purposes.</p>
+    <div id="visitorLocation"></div>
+  </section>
+</main>
+
+<div class="footer">
+  &copy; 2024 Location Tracking Demo • Open source & client-only (no backend)
+</div>
+
+<script>
+(() => {
+  // Generate unique ID for tracking links
+  function generateId(length = 8) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i=0; i<length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  function saveTrackingData(id, data) {
+    // Save visitor location data keyed by link id in localStorage
+    let store = JSON.parse(localStorage.getItem('trackingData')) || {};
+    if (!store[id]) store[id] = [];
+    store[id].push(data);
+    localStorage.setItem('trackingData', JSON.stringify(store));
+  }
+
+  function getTrackingData(id) {
+    let store = JSON.parse(localStorage.getItem('trackingData')) || {};
+    return store[id] || [];
+  }
+
+  function renderTrackingLinks() {
+    const ul = document.getElementById('trackingLinks');
+    ul.innerHTML = '';
+    const links = JSON.parse(localStorage.getItem('createdTrackingLinks')) || [];
+    if (links.length === 0) {
+      ul.innerHTML = '<li>No tracking links created yet.</li>';
+      return;
+    }
+    links.forEach(link => {
+      const li = document.createElement('li');
+      li.classList.add('tracking-item');
+
+      // Link display
+      const a = document.createElement('a');
+      a.href = `${location.origin}${location.pathname}#track/${link.id}`;
+      a.target = '_blank';
+      a.textContent = a.href;
+      a.className = 'tracking-link';
+      li.appendChild(a);
+
+      // Label display if present
+      if (link.label) {
+        const label = document.createElement('div');
+        label.textContent = `Label: ${link.label}`;
+        label.style.fontStyle = 'italic';
+        label.style.marginBottom = '0.3rem';
+        li.insertBefore(label, a);
+      }
+
+      // Button to copy link
+      const copyBtn = document.createElement('button');
+      copyBtn.textContent = 'Copy Link';
+      copyBtn.style.marginTop = '0.3rem';
+      copyBtn.style.alignSelf = 'start';
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(a.href).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => copyBtn.textContent = 'Copy Link', 1500);
+        });
+      });
+      li.appendChild(copyBtn);
+
+      // Visitor locations for this link
+      const visitorData = getTrackingData(link.id);
+      if (visitorData.length > 0) {
+        const visitorDiv = document.createElement('div');
+        visitorDiv.className = 'visitor-info';
+        visitorDiv.textContent = visitorData.map((v, i) => {
+          const date = new Date(v.timestamp);
+          return `${i+1}. ${v.coords.latitude.toFixed(4)}, ${v.coords.longitude.toFixed(4)} at ${date.toLocaleString()}`;
+        }).join('\n');
+        li.appendChild(visitorDiv);
+      } else {
+        const noVisitorsDiv = document.createElement('div');
+        noVisitorsDiv.className = 'visitor-info';
+        noVisitorsDiv.textContent = 'No visitors tracked yet.';
+        li.appendChild(noVisitorsDiv);
+      }
+
+      ul.appendChild(li);
+    });
+  }
+
+  function addTrackingLink(label) {
+    const id = generateId(12);
+    const linkObj = { id, label: label.trim() };
+    const links = JSON.parse(localStorage.getItem('createdTrackingLinks')) || [];
+    links.push(linkObj);
+    localStorage.setItem('createdTrackingLinks', JSON.stringify(links));
+    renderTrackingLinks();
+    return id;
+  }
+
+  function parseHash() {
+    // Format: #track/{id}
+    const hash = location.hash;
+    if (hash.startsWith('#track/')) {
+      return hash.slice(7);
+    }
+    return null;
+  }
+
+  function requestLocationAndStore(id) {
+    const section = document.getElementById('tracking-section');
+    const visitorLocationDiv = document.getElementById('visitorLocation');
+    section.style.display = 'block';
+    visitorLocationDiv.textContent = 'Requesting location...';
+
+    if (!navigator.geolocation) {
+      visitorLocationDiv.textContent = 'Geolocation is not supported by your browser.';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(position => {
+      const coords = position.coords;
+      const timestamp = Date.now();
+
+      visitorLocationDiv.innerHTML = `
+        <strong>Your Location:</strong><br/>
+        Latitude: ${coords.latitude.toFixed(6)}<br/>
+        Longitude: ${coords.longitude.toFixed(6)}<br/>
+        Accuracy: ±${coords.accuracy.toFixed(2)} meters
+      `;
+
+      // Save location data locally (visitor localStorage)
+      saveVisitorDataToLocal(id, { coords, timestamp });
+
+      // Also send data to creator's localStorage (simulate tracking)
+      // Because visitor and creator are different users, this won't save real tracking data.
+      // So no server: we just store visitor data in visitor's browser localStorage.
+
+    }, error => {
+      visitorLocationDiv.textContent = `Error getting location: ${error.message}`;
+    }, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 30000
+    });
+  }
+
+  function saveVisitorDataToLocal(id, data) {
+    // Save visitor location to visitor's localStorage tracking for that id
+    // This simulates storing the location on the tracking page itself for demo only
+    let store = JSON.parse(localStorage.getItem('visitorTracking_' + id)) || [];
+    store.push(data);
+    localStorage.setItem('visitorTracking_' + id, JSON.stringify(store));
+  }
+
+  function init() {
+    // Check if URL contains a tracking ID
+    const trackingId = parseHash();
+
+    if (trackingId) {
+      // Hide creator section
+      document.getElementById('creator-section').style.display = 'none';
+      // Show tracking section
+      document.getElementById('tracking-section').style.display = 'block';
+
+      // Request visitor location and show
+      requestLocationAndStore(trackingId);
+    } else {
+      // Show creator UI
+      document.getElementById('creator-section').style.display = 'block';
+      document.getElementById('tracking-section').style.display = 'none';
+      renderTrackingLinks();
+
+      // Setup create link button
+      document.getElementById('createLinkBtn').addEventListener('click', () => {
+        const label = document.getElementById('linkLabel').value;
+        const newId = addTrackingLink(label);
+        // Clear input
+        document.getElementById('linkLabel').value = '';
+        alert('Tracking link created!\n\n' + location.origin + location.pathname + '#track/' + newId);
+      });
+    }
+  }
+
+  window.addEventListener('hashchange', () => {
+    location.reload();
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
+
+  
